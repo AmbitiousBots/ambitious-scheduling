@@ -79,4 +79,7 @@ jobs:
             cd "$HOME"
             node "$AMBITIOUS_HOME/bin/ambitious-scheduling" selfcheck
             node "$AMBITIOUS_HOME/bin/ambitious-scheduling" commands
+            curl -fsSL https://github.com/AmbitiousBots/ambitious-tasks/releases/download/tasks-v0.1.2/ambitious-tasks-0.1.2.mjs -o "$HOME/ambitious-tasks-0.1.2.mjs"
+            echo "9a944b20d310eed4295ba55860679c1a0cd1f64f0f2e3fb034cc4d96c9bb82c9  $HOME/ambitious-tasks-0.1.2.mjs" | sha256sum -c
+            node "$GITHUB_WORKSPACE/examples/end-to-end/run.mjs" --tasks "$HOME/ambitious-tasks-0.1.2.mjs" --scheduling "$AMBITIOUS_HOME/bin/ambitious-scheduling-0.1.0.mjs"
           '

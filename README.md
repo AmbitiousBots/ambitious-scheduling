@@ -137,6 +137,10 @@ Zone rules come from the time zone data built into Node. Every time-dependent an
 
 The dataset in `test/fixtures/work-plan.json` is the task module's example of 104 tasks and 105.5 estimated effort days, 101 of them open. With two calendars working weekdays 09:00 to 17:00 in two time zones and a horizon of 26 weeks from 2026-01-05, `plan propose` with 120-minute blocks places all 101 open tasks in 419 blocks, ending 2026-03-24, with no violations; with one calendar it ends 2026-05-29. `plan model` with 480-minute blocks gives 163 intervals.
 
+## End to end with the task and constraints modules
+
+[`examples/end-to-end`](examples/end-to-end) plays the part of the bot for one planning request: it reads tasks from `ambitious-tasks`, proposes and models a plan here, optionally solves the model with `ambitious-constraints`, commits the plan, forwards the suggested task updates, and works through a calendar holds proposal with a stand-in calendar. Each module is a separate program and only JSON passes between them.
+
 ## Build and verify
 
 Install [mise](https://mise.jdx.dev). Tool versions are pinned in `.mise.toml`. The kit packages are vendored under `vendor/` and bundled at build time.
