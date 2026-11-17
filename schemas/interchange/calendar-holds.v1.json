@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Calendar holds proposal, version 1",
+  "description": "Calendar events a bot may create, keep or cancel for one committed plan version, after the person approves. The module that writes this never contacts a calendar service: the bot does, through its own connectors, and then reports each event it created or canceled back with the hold's idempotency_key. The key names the hold's content (plan, task, calendar, start and end), so the same block in a later plan version keeps its key and is not created twice.",
+  "type": "object",
+  "required": ["schema", "plan", "holds"],
+  "properties": {
+    "schema": { "const": "calendar-holds.v1" },
+    "plan": {
+      "type": "object",
+      "required": ["plan_id", "version", "digest"],
+      "properties": {
+        "plan_id": { "type": "string", "minLength": 1 },
+        "version": { "type": "integer", "minimum": 1 },
+        "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "holds": { "type": "array", "items": { "$ref": "#/$defs/hold" } }
+  },
+  "$defs": {
+    "moment": {
+      "type": "object",
+      "required": ["utc", "local", "time_zone"],
+      "properties": {
+        "utc": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$" },
+        "local": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{2}:[0-9]{2}$" },
+        "time_zone": { "type": "string", "minLength": 1 }
+      }
+    },
+    "hold": {
+      "type": "object",
+      "required": ["action", "idempotency_key", "title", "start", "end", "calendar_hint", "source"],
+      "properties": {
+        "action": { "enum": ["create", "keep", "cancel"] },
+        "idempotency_key": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "start": { "$ref": "#/$defs/moment" },
+        "end": { "$ref": "#/$defs/moment" },
+        "calendar_hint": {
+          "type": "object",
+          "required": ["calendar_id"],
+          "properties": {
+            "calendar_id": { "type": "string", "minLength": 1 },
+            "name": { "type": "string" },
+            "person_ref": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          }
+        },
+        "source": {
+          "type": "object",
+          "required": ["plan_id", "version", "task_id", "seq"],
+          "properties": {
+            "plan_id": { "type": "string", "minLength": 1 },
+            "version": { "type": "integer", "minimum": 1 },
+            "task_id": { "type": "string", "minLength": 1 },
+            "seq": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "external": {
+          "description": "Present on keep and cancel: the event the bot reported for this key.",
+          "type": "object",
+          "required": ["provider", "event_id"],
+          "properties": {
+            "provider": { "type": "string", "minLength": 1 },
+            "event_id": { "type": "string", "minLength": 1 },
+            "calendar": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

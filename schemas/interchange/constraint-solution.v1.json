@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Constraint solution, version 1",
+  "description": "What a constraint solver found for one model and scenario. status says what was proved: optimal (no better solution exists), feasible (a solution, search stopped at its limit), infeasible (no solution exists) or unknown (the limit was reached first). It holds no clock time, so the same model, scenario, seed and solver give the same bytes.",
+  "type": "object",
+  "required": ["schema", "model", "status", "values", "solver"],
+  "properties": {
+    "schema": { "const": "constraint-solution.v1" },
+    "model": {
+      "type": "object",
+      "required": ["name", "digest"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "id": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "scenario": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+    "status": { "enum": ["optimal", "feasible", "infeasible", "unknown"] },
+    "objective": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+    "bound": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+    "values": { "type": "object", "additionalProperties": { "anyOf": [{ "type": "integer" }, { "type": "boolean" }, { "type": "string" }] } },
+    "soft_violated": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "weight"],
+        "properties": { "id": { "type": "string" }, "weight": { "type": "integer" } }
+      }
+    },
+    "checked": {
+      "type": "object",
+      "required": ["violations"],
+      "properties": {
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["constraint", "message"],
+            "properties": { "constraint": { "type": "string" }, "message": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "rests_on_assumptions": { "type": "array", "items": { "type": "string" } },
+    "solver": {
+      "type": "object",
+      "required": ["name", "version", "seed"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "seed": { "type": "integer", "minimum": 0 },
+        "workers": { "const": 1 },
+        "deterministic_time_limit": { "type": "integer", "minimum": 1 },
+        "runtime_lock_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

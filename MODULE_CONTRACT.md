@@ -2,7 +2,7 @@
 
 Every `ambitious-<module>` repository follows this contract. A module is a single-purpose command-line tool with no user interface. A bot runs it, passes JSON in, and reads JSON out. Because every module behaves the same way, a bot can drive any of them without special cases.
 
-The words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119. Part 1 states the ten rules. Part 2 lists the shared error codes. Part 3 gives a worked example for each rule and fixes the details the rules leave open. Part 4 lists the gates a module passes before a release.
+The words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119. Part 1 states the ten rules. Part 2 lists the shared error codes. Part 3 gives a worked example for each rule and fixes the details the rules leave open. Part 4 lists the gates a module passes before a release. Part 5 says how data crosses from one module to another.
 
 ## Who this is for
 
@@ -35,6 +35,7 @@ Machine-checked parts of this contract:
 | Valid and invalid envelope examples | `examples/envelopes/` | `npm run check:contract` |
 | Every envelope printed in this file | this file | `npm run check:contract` |
 | No internal references or machine-specific paths | every tracked file | `npm run check:standalone` |
+| Interchange schemas and their valid and invalid examples | `schemas/interchange/` and `examples/interchange/` | `npm test` and `npm run test:python` |
 | Envelope shape, exit codes, `--now` and `--seed`, forbidden paths, read-only analysis and clean stdout of a built module | `packages/kit` (TypeScript) and `packages/kit-python` (Python) | `npm run contract -- <binary>` |
 | No clock, randomness, timers, network or comments outside the allowed directories | `packages/lint` | `npm run lint` |
 | Which directory may import what | `packages/depcruise` | `npm run depcruise` |
@@ -75,6 +76,8 @@ A module MUST NOT render documents. The bot writes documents as Grok Bot Pages (
 
 A module MUST be released as one asset, either `ambitious-<module>-<semver>.mjs` (TypeScript, Node 24, a single bundled file, no `npm install`) or `ambitious-<module>-<semver>.pyz` (Python 3.13 zipapp, standard library or vendored dependencies), plus a `SHA256SUMS` file. The installer MUST write to `$AMBITIOUS_HOME/bin`, MUST be idempotent, MUST verify the checksum, and MUST be safe to run on every routine start.
 
+A Python module MAY also declare one pinned runtime: a second release asset, `ambitious-<module>-<semver>.runtime.txt`, that lists exact package versions with their SHA-256 hashes. The installer MUST install it only when asked to, MUST verify it against `SHA256SUMS`, and MUST put it under `$AMBITIOUS_HOME/<module>/runtime/`. A module with a pinned runtime MUST still run `commands` and `selfcheck` without it, and a command that needs it MUST fail with `E_RUNTIME` when it is not installed.
+
 ### 6. `selfcheck`
 
 Every module MUST provide a `selfcheck` command that reports the runtime version, the binary checksum, the result of `PRAGMA integrity_check` and the schema version, runs pending migrations, and lists what is wrong in `data.problems[]` in plain words.
@@ -105,6 +108,7 @@ Every module uses these codes with these meanings and exit codes.
 | `E_INPUT_SCHEMA` | 1 | Input is missing, is not JSON, or does not match the command's input schema. | Name the field and what it must be. |
 | `E_FORBIDDEN_PATH` | 1 | A path resolves under the bot's private data directory, `/home/box/agent-data/`. | Use a path under `$AMBITIOUS_HOME`. |
 | `E_NO_KEY` | 1 | The command needs an AI call and the key environment variable is not set. | Name the environment variable to set for this call. |
+| `E_RUNTIME` | 1 | The command needs the module's pinned runtime (rule 5), and it is not installed, is incomplete, or was built for another Python version. | Run the installer for this module with `--runtime`. |
 | `E_DB` | 2 | The database cannot be opened, read or written, or fails `PRAGMA integrity_check`. | Run `selfcheck` and read `data.problems`. |
 | `E_MIGRATION` | 2 | A migration failed, the database is behind the binary on a read-only open, or the database is newer than the binary. | Run `selfcheck`, or install the newer binary. |
 | `E_INTERNAL` | 2 | Anything the module did not expect: a bug. | Report it with the stderr log. |
@@ -375,7 +379,44 @@ It prints one envelope like a module does. `data.action` is `installed`, `replac
 - The installer MUST install an exact version. It MUST NOT resolve "latest".
 - Every file MUST be put in place by a rename within `bin`, so an interrupted run never leaves a half-written binary.
 - The installer MUST NOT read, create or change any module database.
-- The asset MUST run with only the runtime present: `node` 24 for `.mjs`, `python3` 3.13 for `.pyz`. It MUST NOT need `npm install`, `pip install` or any other file.
+- The asset MUST run with only the runtime present: `node` 24 for `.mjs`, `python3` 3.13 for `.pyz`. It MUST NOT need `npm install`, `pip install` or any other file. The one exception is a pinned runtime, below.
+
+A pinned runtime is for a Python module whose work needs a native package that cannot be put inside a `.pyz`, such as a solver. It is opt-in at every level: a module declares it, and a person or bot asks for it. A release that declares one has three assets:
+
+```text
+ambitious-constraints-0.1.0.pyz
+ambitious-constraints-0.1.0.runtime.txt
+SHA256SUMS
+```
+
+The runtime lock is a list of requirements in `pip`'s format. Every line names one package at one exact version (`==`) with one or more `--hash=sha256:` values, one for each platform's file, and nothing else: no index address, no range, no option.
+
+```text
+$ node ambitious-install-0.4.0.mjs constraints 0.1.0 --kind pyz --runtime --from https://example.com/releases/constraints-v0.1.0
+```
+
+With `--runtime` the installer installs the binary as before and then builds the runtime. `data.runtime` reports `action` (`installed` or `unchanged`), the lock's file name and SHA-256, and the path:
+
+```text
+$AMBITIOUS_HOME/constraints/runtime/
+  <SHA-256 of the lock>/         a Python virtual environment holding exactly the locked packages
+    requirements.txt             the verified lock
+    ambitious-runtime.json       written last: { module, version, lockSha256 }
+```
+
+| State before | What the installer does with `--runtime` |
+|---|---|
+| No runtime for this lock | Downloads the lock, verifies it against `SHA256SUMS`, builds the environment in a temporary directory beside the final one with `python3 -m venv` and `pip install --require-hashes --only-binary :all: --no-deps`, writes the marker, then renames the directory into place and records the lock's checksum in `bin/SHA256SUMS`. |
+| The runtime for this lock is in place with its marker | Nothing. No download, no write. |
+| A directory for this lock without a matching marker | Builds again and replaces it. |
+| The lock's checksum does not match, a line is not an exact hashed pin, or the build fails | Deletes the temporary directory, leaves any existing runtime and the installed binary untouched, exits non-zero. |
+
+- The installer MUST NOT install a runtime unless `--runtime` is given. A bot template MUST NOT ask for a runtime for a module the person did not choose to add.
+- A failed runtime build is `E_INSTALL_RUNTIME`, exit code 1. A lock that does not match `SHA256SUMS` is `E_INSTALL_CHECKSUM`.
+- `pip` verifies every downloaded file against the hashes in the lock and refuses anything else, so the lock's SHA-256 fixes every byte of the runtime for a platform. The directory is named by that SHA-256, so two module versions with different locks never share or overwrite a runtime.
+- The module finds its runtime by the SHA-256 of the lock embedded in its own binary. It MUST NOT use a runtime whose marker names another lock, and MUST NOT fall back to packages installed elsewhere on the machine.
+- A runtime is built for the Python that built it. A module run by another Python minor version reports the runtime as not usable rather than loading it.
+- The module's `NOTICE` MUST list the packages in the lock and their licenses. The packages are downloaded by the installer; they are not part of the module's release.
 
 ### Rule 6: `selfcheck`
 
@@ -446,6 +487,40 @@ When something is wrong, `selfcheck` still reports everything it could read. Exi
 - `data` always has `runtime`, `binary`, `db` and `problems`. `db.userVersion` is `PRAGMA user_version` after pending migrations ran; `db.migrationsApplied` lists the migrations this run applied.
 - `ok` is `true` exactly when `problems` is empty. Each problem is one plain sentence. Failed integrity check is `E_DB`; failed migration or a database newer than the binary is `E_MIGRATION`; anything else is `E_INTERNAL`.
 - `selfcheck` takes no input and is safe to run on every routine start: with nothing to migrate and nothing wrong it changes nothing.
+- A module with a pinned runtime (rule 5) adds two fields: `data.pinnedRuntime`, `{ "state", "path", "lockSha256" }` with `state` one of `ready`, `missing` or `damaged`, and `data.warnings`, a list of plain sentences that is empty when the runtime is ready. A runtime that is not ready is a warning, not a problem: the module's other commands work without it, so `ok` stays `true`, and each command that needs the runtime fails with `E_RUNTIME`.
+
+```json
+{
+  "ok": true,
+  "schemaVersion": 1,
+  "module": "constraints",
+  "command": "selfcheck",
+  "data": {
+    "runtime": { "name": "python", "version": "3.13.5" },
+    "binary": {
+      "path": "/workspace/ambitious/bin/ambitious-constraints-0.1.0.pyz",
+      "sha256": "2c0fe275a7597255d97fd47be41e75e2bf911c493b7a85c44096202aaaf5ba39"
+    },
+    "db": {
+      "path": "/workspace/ambitious/constraints/constraints.sqlite",
+      "integrityCheck": "ok",
+      "userVersion": 1,
+      "migrationsApplied": []
+    },
+    "problems": [],
+    "pinnedRuntime": {
+      "state": "missing",
+      "path": "/workspace/ambitious/constraints/runtime/4a75ab26b9047bbb1e89e8c47545aa668a01a3186e8ed8e629518c3aab6576d9",
+      "lockSha256": "4a75ab26b9047bbb1e89e8c47545aa668a01a3186e8ed8e629518c3aab6576d9"
+    },
+    "warnings": [
+      "The pinned runtime is not installed at /workspace/ambitious/constraints/runtime/4a75ab26b9047bbb1e89e8c47545aa668a01a3186e8ed8e629518c3aab6576d9. Install it with the installer's --runtime flag for ambitious-constraints."
+    ]
+  },
+  "errors": [],
+  "meta": { "now": "2026-01-01T00:00:00.000Z", "seed": 7, "version": "0.1.0" }
+}
+```
 
 ### Rule 7: keys and `E_NO_KEY`
 
@@ -487,7 +562,7 @@ Only two places may use the network, and each for one purpose:
 | Directory | May use the network for |
 |---|---|
 | `src/ai/` | AI calls made with a key from the environment |
-| `src/install/` | Downloading the release asset and `SHA256SUMS` |
+| `src/install/` | Downloading the release asset, `SHA256SUMS` and, when asked, the packages of a pinned runtime |
 
 Code anywhere else MUST NOT import `fetch`, `http`, `https`, `net`, `tls`, `dgram`, `dns` or a package that wraps them. In Python modules the same holds for `urllib`, `http`, `socket` and `ssl`.
 
@@ -541,3 +616,23 @@ A module is released only from a commit where every one of these passed in CI. A
 | `verify/run` | The module's own end-to-end script: every user-visible feature listed in `verify/features.json` passes against a fresh, empty `AMBITIOUS_HOME`. |
 
 A release tag is created only when all gates are green.
+
+## Part 5: data between modules
+
+A module MUST NOT import another module, start another module's binary, or open another module's database. When one module's output is another module's input, the bot carries it: it reads the envelope one module printed and passes the part the next module needs as that module's input JSON.
+
+The shapes that cross between modules are interchange schemas. Each is one JSON Schema file in `schemas/interchange/`, named `<name>.v<N>.json`, and every document of that shape carries its own name in a `schema` field:
+
+| Schema | Written by | Read by |
+|---|---|---|
+| `tasks-snapshot.v1` | the bot, from a task module's `list` rows | a module that plans those tasks |
+| `constraint-model.v1` | a module or a bot that states a decision as variables and constraints | a constraint solver module |
+| `constraint-solution.v1` | a constraint solver module | the module or bot that wrote the model |
+| `schedule-plan.v1` | a scheduling module | the bot, and the same module on a later call |
+| `calendar-holds.v1` | a scheduling module | the bot, which may create calendar events through its own connectors after the person approves |
+
+- A module that writes an interchange document MUST write one that its schema accepts. A module that reads one MUST check it at the CLI boundary like any other input (rule 1) and refuse a document whose `schema` field it does not know with `E_INPUT_SCHEMA`.
+- A reader MUST ignore fields it does not know, unless the schema forbids them. Adding an optional field to a schema is not breaking. Removing or renaming a field, or changing its type or meaning, is a new file with the next `v<N>`; the earlier file stays.
+- A module carries a copy of each schema it reads or writes and tests its own fixtures against it, so the producer and the consumer are held to the same file. `packages/kit/src/domain/json-schema.ts` and its Python mirror check a document against a schema; they support exactly the keywords these schemas use and reject any other.
+- An interchange document holds no clock time that the producing command did not receive as input or as `--now`, so rule 2 holds across modules: the same inputs give the same document.
+- A module MUST NOT act on a service outside the machine because of an interchange document. `calendar-holds.v1` is a proposal: the module that writes it never contacts a calendar. The bot shows it to the person, creates or cancels the events it lists with its own connectors, and reports each event's identifier back to the module with the hold's `idempotency_key`, so a repeated run proposes nothing twice.

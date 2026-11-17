@@ -1,0 +1,67 @@
+[
+  {
+    "id": "build",
+    "userVisible": "The module builds into one executable file that needs only Node.",
+    "check": "npm run build"
+  },
+  {
+    "id": "commands",
+    "userVisible": "A caller can discover every command and whether it reads or writes data.",
+    "check": "node scripts/verify-feature.mjs commands"
+  },
+  {
+    "id": "selfcheck",
+    "userVisible": "Startup checks report runtime, binary checksum, database integrity and migrations.",
+    "check": "node scripts/verify-feature.mjs selfcheck"
+  },
+  {
+    "id": "calendars",
+    "userVisible": "A calendar has a time zone and working hours, changes only from the version the caller read, and its free time is reported in both UTC and local time across a daylight-saving change.",
+    "check": "node scripts/verify-feature.mjs calendars"
+  },
+  {
+    "id": "time-zones",
+    "userVisible": "Local working hours turn into the right instants in every time zone and year, including the hour that is skipped and the hour that repeats when clocks change.",
+    "check": "node --test test/zone.test.ts test/availability.test.ts"
+  },
+  {
+    "id": "propose",
+    "userVisible": "A plan for 104 tasks is proposed without storing anything: every open task is placed inside working hours, around busy time and after its prerequisites, and asking twice gives the same answer.",
+    "check": "node scripts/verify-feature.mjs propose"
+  },
+  {
+    "id": "independent-check",
+    "userVisible": "A separate checker finds nothing wrong with any plan the scheduler proposes, for generated tasks, calendars and busy time, and names each kind of mistake when a plan is damaged.",
+    "check": "node --test test/greedy.property.test.ts"
+  },
+  {
+    "id": "commit",
+    "userVisible": "A plan is stored only as it was proposed and approved: a commit against an older version, with changed blocks or after a task changed is refused, a retry returns the first answer, and a copy is made only by an explicit clone that leaves its source alone.",
+    "check": "node scripts/verify-feature.mjs commit"
+  },
+  {
+    "id": "approval-flow",
+    "userVisible": "After a plan is committed the module hands the bot the exact task updates to forward and a calendar holds proposal; once the bot reports the events it created, nothing is proposed twice, and a dropped block or a canceled plan is proposed for cancel.",
+    "check": "node scripts/verify-feature.mjs flow && node --test --test-name-pattern='calendar holds' test/cli.test.ts"
+  },
+  {
+    "id": "constraint-model",
+    "userVisible": "The same planning question can be handed to a constraint solver as a model, and the solver's answer comes back through the same independent check before anyone sees it.",
+    "check": "node scripts/verify-feature.mjs model && node --test test/model.test.ts"
+  },
+  {
+    "id": "contract",
+    "userVisible": "The module answers like every other module: one JSON answer per command, fixed exit codes, repeatable output, no access to the bot's private data, and analysis that never changes data.",
+    "check": "npm run --silent contract"
+  },
+  {
+    "id": "standalone",
+    "userVisible": "Anyone can read and contribute to this repository: nothing in it points at a private plan or at one person's machine.",
+    "check": "node scripts/check-standalone.mjs"
+  },
+  {
+    "id": "models",
+    "userVisible": "The models of plan commit and of the calendar hold lifecycle pass the model checker, and every deliberately broken copy is caught breaking the rule it was written to break.",
+    "check": "node scripts/tlc.mjs"
+  }
+]
