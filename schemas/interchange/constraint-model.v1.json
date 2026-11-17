@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Constraint model, version 1",
+  "description": "A decision model for a constraint solver: integer variables, integer parameters, constraints with a strength and a category, the evidence behind each number, an objective and named scenarios. Every number is an integer; a quantity with a fraction is scaled (for example cents) and says so in scale. A literal is a boolean variable name, an enum value written name=value, or either with a leading ! for its negation. Wherever a number is expected, the text param:<name> or -param:<name> stands for a parameter's value.",
+  "type": "object",
+  "required": ["schema", "name", "variables", "constraints"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "constraint-model.v1" },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "variables": { "type": "array", "items": { "$ref": "#/$defs/variable" } },
+    "params": { "type": "array", "items": { "$ref": "#/$defs/param" } },
+    "constraints": { "type": "array", "items": { "$ref": "#/$defs/constraint" } },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "objective": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/objective" }] },
+    "scenarios": { "type": "array", "items": { "$ref": "#/$defs/scenario" } },
+    "hints": { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } }
+  },
+  "$defs": {
+    "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.:-]*$" },
+    "literal": { "type": "string", "pattern": "^!?[A-Za-z_][A-Za-z0-9_.:-]*(=[A-Za-z0-9_.:-]+)?$" },
+    "number": { "anyOf": [{ "type": "integer" }, { "type": "string", "pattern": "^-?param:[A-Za-z_][A-Za-z0-9_.:-]*$" }] },
+    "value": { "anyOf": [{ "type": "integer" }, { "type": "boolean" }, { "type": "string" }] },
+    "variable": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "type": { "enum": ["bool", "int", "enum", "interval"] },
+        "domain": {
+          "description": "For int: lo and hi, or values, or ranges (a list of [lo, hi] pairs). For enum: values, a list of names.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lo": { "type": "integer" },
+            "hi": { "type": "integer" },
+            "values": { "type": "array", "minItems": 1, "items": { "anyOf": [{ "type": "integer" }, { "type": "string" }] } },
+            "ranges": { "type": "array", "minItems": 1, "items": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer" } } }
+          }
+        },
+        "interval": {
+          "description": "For interval: the int variables that hold its start and end, its fixed size, and optionally the literal that says whether it is present.",
+          "type": "object",
+          "required": ["start", "size", "end"],
+          "additionalProperties": false,
+          "properties": {
+            "start": { "$ref": "#/$defs/name" },
+            "size": { "type": "integer", "minimum": 0 },
+            "end": { "$ref": "#/$defs/name" },
+            "present": { "$ref": "#/$defs/literal" }
+          }
+        },
+        "description": { "type": "string" }
+      }
+    },
+    "param": {
+      "type": "object",
+      "required": ["name", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "value": { "type": "integer" },
+        "unit": { "type": "string" },
+        "scale": { "type": "integer", "minimum": 1 },
+        "description": { "type": "string" }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "required": ["id", "kind", "args", "strength"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/name" },
+        "kind": { "enum": ["linear", "implication", "exactly_one", "at_most_one", "fix", "product", "element", "precedence", "no_overlap", "cumulative"] },
+        "args": { "type": "object" },
+        "strength": { "enum": ["structural", "hard", "soft"] },
+        "weight": { "type": "integer", "minimum": 0 },
+        "category": { "enum": ["desire", "goal", "policy", "fact", "assumption", "definition"] },
+        "negotiable": { "type": "boolean" },
+        "label": { "type": "string" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["target", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "constraint": { "$ref": "#/$defs/name" }, "param": { "$ref": "#/$defs/name" } }
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "date": { "type": "string" },
+        "quote": { "type": "string" },
+        "confidence": { "enum": ["sourced", "derived", "assumption"] },
+        "inputs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "objective": {
+      "type": "object",
+      "required": ["sense", "terms"],
+      "additionalProperties": false,
+      "properties": {
+        "sense": { "enum": ["max", "min"] },
+        "terms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["coef", "var"],
+            "additionalProperties": false,
+            "properties": { "coef": { "$ref": "#/$defs/number" }, "var": { "$ref": "#/$defs/literal" } }
+          }
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "description": { "type": "string" },
+        "overrides": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "disable": { "type": "array", "items": { "$ref": "#/$defs/name" } },
+            "params": { "type": "object", "additionalProperties": { "type": "integer" } },
+            "soften": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+            "harden": { "type": "array", "items": { "$ref": "#/$defs/name" } },
+            "add": { "type": "array", "items": { "$ref": "#/$defs/constraint" } }
+          }
+        }
+      }
+    }
+  }
+}

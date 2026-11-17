@@ -1,0 +1,12 @@
+[
+  {
+    "id": "standalone",
+    "userVisible": "Anyone can read and contribute to this repository: nothing in it points at a private plan or at one person's machine.",
+    "check": "node scripts/check-standalone.mjs"
+  },
+  {
+    "id": "models",
+    "userVisible": "Every model of how the software behaves passes the model checker, and every deliberately broken copy is caught breaking the rule it was written to break.",
+    "check": "node scripts/tlc.mjs"
+  }
+]

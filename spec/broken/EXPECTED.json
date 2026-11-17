@@ -1,0 +1,6 @@
+{
+  "SampleNoGuard": {
+    "invariant": "WithinCapacity",
+    "because": "Add no longer checks that there is room, so the count goes past Capacity."
+  }
+}
