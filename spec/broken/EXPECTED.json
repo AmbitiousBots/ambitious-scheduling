@@ -1,6 +1,26 @@
 {
-  "SampleNoGuard": {
-    "invariant": "WithinCapacity",
-    "because": "Add no longer checks that there is room, so the count goes past Capacity."
+  "CommitIgnoresBase": {
+    "invariant": "NoLostUpdate",
+    "because": "plan commit no longer compares base_version with the plan's current version, so two writers who proposed from the same version both commit and the second silently replaces what the first one's reader approved"
+  },
+  "CommitIgnoresTasksDigest": {
+    "invariant": "CommittedForCurrentTasks",
+    "because": "plan commit no longer compares the tasks digest, so a plan proposed for an older tasks snapshot is committed after a task changed"
+  },
+  "RetryCommitsAgain": {
+    "invariant": "OneVersionPerApproval",
+    "because": "a retry with the same idem_key commits a second time instead of returning the stored receipt, so one approval produces two versions"
+  },
+  "CloneSharesSource": {
+    "invariant": "CloneLeavesSourceAlone",
+    "because": "plan clone writes into the plan it copies from, so a committed version of the source changes after it was approved"
+  },
+  "HoldKeyIncludesVersion": {
+    "invariant": "NeverCreatedTwice",
+    "because": "the hold's idempotency key includes the plan version, so an unchanged block gets a new key in the next version and the bot creates a second calendar event for it"
+  },
+  "CancelOnlyFromCurrentVersion": {
+    "invariant": "DroppedIsProposedForCancel",
+    "because": "cancels are computed only from the current version's blocks, so a calendar event whose block a newer version dropped is never proposed for cancel and stays in the calendar"
   }
 }

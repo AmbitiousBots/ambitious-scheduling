@@ -1,133 +1,184 @@
-# ambitious-template
+# ambitious-scheduling
 
-This repository is a GitHub template for a new [Ambitious](https://ambitiousbots.com) module. An Ambitious module is an open-source, single-purpose command-line tool with no user interface. A bot runs it on a Grok Bot computer, passes JSON in, and reads JSON out.
+Ambitious Scheduling is a command-line module that owns time for a bot: calendars with time zones, working hours, imported busy time, and versioned plans that place tasks into blocks of free working time. It proposes a plan, checks it with a separate checker, stores it only when the bot commits the plan the person approved, and then hands the bot two proposals: the task updates to forward to a task module, and the calendar holds the bot may create through its own calendar connectors. Every command reads JSON and returns one JSON envelope. There is no user interface, document rendering, network access or AI key requirement.
 
-This repository contains no module code. It contains the files you need to start: the module contract, skill templates, coding-agent guides, and the standard open-source files used by the existing public module repositories. You add the code by adopting [ambitious-kit](https://github.com/AmbitiousBots/ambitious-kit), which is the source of the contract, the shared helpers, the checks, and the installer.
+Part of [Ambitious](https://ambitiousbots.com). The shared [module contract](MODULE_CONTRACT.md) defines the envelope, installation, database and runtime rules, and how data crosses between modules (Part 5).
 
-The word "template" is used in three places, and they are not the same thing:
+The module never calls another module and never contacts a calendar service. Tasks arrive as a `tasks-snapshot.v1` document the bot built from a task module's `list` rows. Busy time arrives as JSON the bot read through its own connectors. What leaves is JSON the bot forwards after the person approves.
 
-| Name | What it is |
-| --- | --- |
-| This GitHub template | This repository: a starting point for a new module. |
-| The kit's repo-template | The files `scripts/apply-template.mjs` copies from [ambitious-kit](https://github.com/AmbitiousBots/ambitious-kit/tree/main/repo-template) into a module repository. |
-| The Ambitious Bot template | The free bot's instructions, skills, routines, and module pins. It ships as `ambitious-template-<version>.tgz` on each [kit release](https://github.com/AmbitiousBots/ambitious-kit/releases). This GitHub template is not that archive, and it publishes no release assets of its own. |
+## Run
 
-## What a module is
-
-A module does one job and exposes it as commands. Every command prints one JSON envelope on stdout. A command that needs input reads JSON from stdin or from `--in`. Commands that take no input, including `selfcheck` and `commands`, still print the same envelope shape.
-
-The short envelope in rule 1 of the contract looks like this:
-
-```json
-{ "ok": true, "schemaVersion": 1, "module": "tasks", "command": "next", "data": {}, "errors": [], "meta": { "now": "2026-01-01T00:00:00.000Z", "seed": 7, "version": "0.1.0" } }
-```
-
-The ten rules, the shared error codes, the worked examples, and the release gates are in [MODULE_CONTRACT.md](MODULE_CONTRACT.md). That file is a verbatim copy of the contract published in ambitious-kit `kit-v0.2.7`. The kit remains the source of truth. In that copy, "this repository" and "the kit" mean ambitious-kit, so a proposed change to the contract belongs there. When you adopt a later kit release, replace this copy with the contract from that release.
-
-A module is built to run on a Grok Bot computer, and it runs the same way on any machine with the right runtime (Node 24 for a TypeScript module, Python 3.13 for a Python module). It keeps its data under `AMBITIOUS_HOME`, which defaults to `/workspace/ambitious` on a Grok Bot computer. It refuses every path under `/home/box/agent-data/`, the bot's private data directory.
-
-Existing public modules include [ambitious-tasks](https://github.com/AmbitiousBots/ambitious-tasks), [ambitious-records](https://github.com/AmbitiousBots/ambitious-records), [ambitious-contracts](https://github.com/AmbitiousBots/ambitious-contracts), [ambitious-compliance](https://github.com/AmbitiousBots/ambitious-compliance), [ambitious-audit](https://github.com/AmbitiousBots/ambitious-audit), and [ambitious-video](https://github.com/AmbitiousBots/ambitious-video). Use them as examples. Do not invent a different envelope, a different install layout, or a different `selfcheck`.
-
-## Start from this GitHub template
-
-1. On GitHub, use this repository as a GitHub template and create a new public repository named `ambitious-<<MODULE>>`, where `<<MODULE>>` is a short lowercase name such as `tasks` or `records`. You can also clone this repository and change the remote. Enable [private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/configuring-private-vulnerability-reporting-for-a-repository) on the new repository, so [SECURITY.md](SECURITY.md) and the [code of conduct](CODE_OF_CONDUCT.md) have a private form to point at.
-2. Fill in every `<<PLACEHOLDER>>` in the skill files listed under [Layout](#layout). Rename the example skill directories under `skills/` from `your-module-*` to `<<MODULE>>-for-bots` and, if you need a Page skill, `<<MODULE>>-page`.
-3. Update [NOTICE](NOTICE): change the first line to the new repository name, and put the copyright holder who owns this module in place of Ambitious Corporation if that is not you.
-4. Adopt the latest [ambitious-kit](https://github.com/AmbitiousBots/ambitious-kit) release, following [Start a module on the kit](https://github.com/AmbitiousBots/ambitious-kit#start-a-module-on-the-kit). That is the supported way to add code, checks, and the verification bar. In short, for a TypeScript module:
-   1. From a checkout of ambitious-kit, run `node scripts/apply-template.mjs <path-to-your-repo>`. It creates missing files and never overwrites a file that already exists. Add `--dry-run` to see the list without writing. Because this GitHub template already ships many of the same paths as the kit's repo-template, those files are left as they are. After the command runs, do the replacements in [Files to replace after you adopt the kit](#files-to-replace-after-you-adopt-the-kit).
-   2. Download the kit's `ambitious-kit`, `ambitious-lint`, and `ambitious-depcruise` `.tgz` files plus `SHA256SUMS` from that release, check them with `shasum -a 256 -c SHA256SUMS --ignore-missing`, and commit them under `vendor/`.
-   3. Add those packages as development dependencies and copy the remaining build files from [examples/hello](https://github.com/AmbitiousBots/ambitious-kit/tree/main/examples/hello), as the kit README describes.
-   4. Write the module in `src/`, add an entry to `verify/features.json` for each command, and run the checks the kit lists.
-5. If the kit release you adopted is newer than `kit-v0.2.7`, replace [MODULE_CONTRACT.md](MODULE_CONTRACT.md) with the contract from that release. Compare `.mise.toml`, `.gitignore` and `.standalone.json` with that release's repo-template as well, and take any updates you still want.
-
-For a Python module, apply the kit's repo-template the same way and follow the kit's [Python package](https://github.com/AmbitiousBots/ambitious-kit/tree/main/packages/kit-python).
-
-Do not start from a blank layout, and do not copy an unofficial fork of the kit. The contract requires a module repository to adopt a kit release before module code is merged, because the kit is what checks most of the rules.
-
-### Files to replace after you adopt the kit
-
-`apply-template.mjs` will not overwrite these. Replace them yourself so the repository describes your module, not this GitHub template:
-
-| File | What to do |
-| --- | --- |
-| `README.md` | Write a module README. The contract requires a table of every command marked `read` or `write`, and a table of the module's own error codes with the same columns as the contract's shared-code table. Existing modules such as [ambitious-tasks](https://github.com/AmbitiousBots/ambitious-tasks) show the shape. |
-| `AGENTS.md` | Rewrite it for this module. You can start from [repo-template/AGENTS.md](https://github.com/AmbitiousBots/ambitious-kit/blob/main/repo-template/AGENTS.md) and delete any section that is only about starting from this GitHub template. |
-| `CONTRIBUTING.md` | Rewrite it for this module. You can start from [repo-template/CONTRIBUTING.md](https://github.com/AmbitiousBots/ambitious-kit/blob/main/repo-template/CONTRIBUTING.md). |
-| `CHANGELOG.md` | Start the module's own changelog. Do not keep the entry that records this GitHub template. |
-| `NOTICE` | Keep Apache-2.0 attribution, with this module's repository name and the correct copyright holder. |
-| `skills/` | Finish every `<<PLACEHOLDER>>` and rename the example directories. Delete the Page skill directory if this module has no Page view. |
-
-Leave [LICENSE](LICENSE), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md) and the issue forms as they are unless a later kit release changes them.
-
-## Layout
-
-| Path | What it is |
-| --- | --- |
-| [MODULE_CONTRACT.md](MODULE_CONTRACT.md) | The module contract, copied from ambitious-kit `kit-v0.2.7`. |
-| [AGENTS.md](AGENTS.md) | Rules for coding agents that build or change a module. [CLAUDE.md](CLAUDE.md) points at this file. |
-| [skills/](skills/) | Skill templates the bot follows when it drives the module. See [skills/README.md](skills/README.md). |
-| [LICENSE](LICENSE) and [NOTICE](NOTICE) | Apache License 2.0, which every module must use (contract rule 10). |
-| [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md) | How to file issues, the Contributor Covenant, and private vulnerability reporting. |
-| [CHANGELOG.md](CHANGELOG.md) | Changes to this GitHub template. A module started from it keeps its own changelog. |
-| [.github/](.github/) | Issue and pull request templates. |
-| [.gitignore](.gitignore) | Ignores for the directories a module grows once you adopt the kit. |
-| [.mise.toml](.mise.toml) | Pinned Node, Python, and Java versions, matching the kit's repo-template at `kit-v0.2.7`. |
-| [.standalone.json](.standalone.json) | The documented runtime paths that the kit's standalone check is allowed to see. |
-| [.cursor/rules/agent-models.mdc](.cursor/rules/agent-models.mdc) | Model choices per agent role, as used in the existing public module repositories. |
-| `.markdownlint.json`, `.markdownlintignore`, `.markdown-link-check.json` | Config for the Markdown and link checks in [CONTRIBUTING.md](CONTRIBUTING.md). |
-
-After you adopt the kit, the repository also has the layout the contract and [AGENTS.md](AGENTS.md) describe: `src/cli/`, `src/domain/`, `src/db/`, and when needed `src/ai/`; `migrations/`; `test/`; `spec/`; `verify/`; `vendor/`; and `scripts/`. A Python module follows the same ideas in the kit's Python package.
-
-## Install and test on a computer you control
-
-`AMBITIOUS_HOME` is the one directory where modules keep everything. When it is not set, it defaults to `/workspace/ambitious`, which is the right place on a Grok Bot computer. On any other machine, and in tests, set it to a directory of your choice.
-
-| Path | What lives there |
-| --- | --- |
-| `$AMBITIOUS_HOME/<module>/<module>.sqlite` | The module's SQLite database, unless `--db` names another file. |
-| `$AMBITIOUS_HOME/bin/` | Installed release files, a `SHA256SUMS` file with the verified checksum line for each installed asset, and a link named `ambitious-<module>` that points at the current one. |
-
-A module must refuse every path under `/home/box/agent-data/` with `E_FORBIDDEN_PATH`.
-
-### Test a build yourself
-
-Set `AMBITIOUS_HOME` to a fresh temporary directory, then run the built binary (a single `.mjs` or `.pyz` file) with Node 24 or Python 3.13. Start with `selfcheck` and `commands`. The contract tests and `verify/run` each use a fresh temporary `AMBITIOUS_HOME` as well. A run is repeatable when you pass back the `now` and `seed` values from `meta`.
-
-To install one exact release into `$AMBITIOUS_HOME/bin` on a computer you control, use the kit's single-module installer. Get `ambitious-install-<version>.mjs` and `SHA256SUMS` from the same [kit release](https://github.com/AmbitiousBots/ambitious-kit/releases) you adopted, and check the installer against that `SHA256SUMS` before you run it:
-
-```text
-node ambitious-install-0.2.7.mjs tasks 0.1.2 --from https://github.com/AmbitiousBots/ambitious-tasks/releases/download/tasks-v0.1.2
-```
-
-Replace `tasks`, `0.1.2` and the `--from` address with your module name, version, and release directory or release address. The installer checks the checksum in that release's `SHA256SUMS` so the downloaded file matches what the release published. That is a download-integrity check. It is not the pin chain an Ambitious Bot uses, which is described below. The installer writes the asset into `bin` and is safe to run again. It does not change any module database. Do not copy a binary into `bin` by hand.
-
-### What an Ambitious Bot installs
-
-An Ambitious Bot runs one command, described in the `ambitious-module-installer` skill that ships with the Ambitious Bot template:
+The release contains `ambitious-scheduling-0.1.0.mjs` and `SHA256SUMS`. Verify the checksum before running the file with Node 24. The binary includes its dependencies and migrations; it needs no npm install or other repository files.
 
 ```sh
-node "${AMBITIOUS_HOME:-/workspace/ambitious}/bin/ambitious-modules" sync --json
+shasum -a 256 -c SHA256SUMS
+export AMBITIOUS_HOME="$(mktemp -d)"
+node ambitious-scheduling-0.1.0.mjs selfcheck
+printf '%s\n' '{"id":"sam","name":"Sam","tz":"Europe/Paris","person_ref":"sam","idem_key":"add-sam"}' | node ambitious-scheduling-0.1.0.mjs calendar add
 ```
 
-`sync` installs, repairs, or upgrades every module pinned by that kit release, then runs each module's `selfcheck --json`. A file is installed only when its SHA-256 matches the pin inside the installer. The bot does not install a module that is not in that pin list, and it does not take a pin, an address, or a checksum from a request.
+The command words are separate arguments: `ambitious-scheduling calendar add`, `ambitious-scheduling plan propose`. Choose a persistent `AMBITIOUS_HOME` for real work. The default is `/workspace/ambitious`, the module storage directory on a Grok Bot computer. The database lives at `$AMBITIOUS_HOME/scheduling/scheduling.sqlite`; `--db` overrides that file. Modules refuse `/home/box/agent-data`, the bot's private state directory, including paths that reach it through symbolic links.
 
-The official pin list is [template/modules.lock.json](https://github.com/AmbitiousBots/ambitious-kit/blob/main/template/modules.lock.json) in ambitious-kit. How a maintainer changes a pin is documented in the [kit README](https://github.com/AmbitiousBots/ambitious-kit#the-ambitious-bot-template). This GitHub template does not add an intake process on top of that. A pin lives inside the installer that a kit release ships. You cannot edit it from this repository, and you should not try to edit it on a bot computer.
+The kit's [installer](https://github.com/AmbitiousBots/ambitious-kit#start-a-module-on-the-kit) verifies release checksums and installs an exact version under `$AMBITIOUS_HOME/bin`. Run `selfcheck` at every routine start.
 
-An Ambitious Bot gets a new pin only when its owner updates that bot's template to a kit release that includes the pin. Shipping a kit release is not enough on its own, because the installer never updates itself.
+## JSON interface
 
-Until a kit release pins your module, you and anyone else can still run it with `AMBITIOUS_HOME` set, or install one exact release with `ambitious-install` on a computer you control, as shown above. The Ambitious Bot's own skill tells the bot to run `sync` and not to install modules by hand, so do not use `ambitious-install` as a substitute for `sync` on a bot that already follows that skill.
+```text
+ambitious-scheduling <command> [--in input.json] [--db scheduling.sqlite] [--now ISO8601] [--seed integer] [--json]
+```
 
-## Publish
+Pass one JSON object on stdin or with `--in`, never both. Every response is one line with `{ ok, schemaVersion, module, command, data, errors, meta }`. Successful commands exit 0; caller errors exit 1; database and internal failures exit 2. The same binary, database state, input, `--now` and `--seed` produce identical stdout bytes. `--now` is the earliest moment a plan may start: nothing is placed in the past. Every instant in output is UTC with a `Z`; local times carry their offset and the calendar's zone.
 
-1. Pass every gate in Part 4 of [MODULE_CONTRACT.md](MODULE_CONTRACT.md). Do not weaken or skip a check to make it pass.
-2. Keep the repository public and licensed Apache-2.0, with [LICENSE](LICENSE) and [NOTICE](NOTICE) at the root.
-3. Create a GitHub release tagged `<<MODULE>>-v<<VERSION>>`, for example `tasks-v0.3.1`. Attach exactly the files the contract requires: `ambitious-<<MODULE>>-<<VERSION>>.mjs` (or `.pyz` for Python) and `SHA256SUMS` in `sha256sum` format.
-4. Leave the skills in this repository named without the `ambitious-` prefix. If a later kit release copies a skill into the Ambitious Bot template, that process adds the prefix and a `Template version` line. That copy step is part of pinning the module in the kit; it does not happen for a module the kit has not pinned.
+| Command | Access | Input | Result in `data` |
+|---|---|---|---|
+| `commands` | none | none | `commands` with names, access and input requirements |
+| `selfcheck` | write | none | runtime, binary SHA-256, database integrity, applied migrations, problems |
+| `calendar add` | write | `{id, name?, tz, kind?, person_ref?, idem_key, actor?}` | `calendar` at version 1 |
+| `calendar update` | write | `{id, expected_version, patch:{name?, tz?, kind?, person_ref?}, idem_key, actor?}` | `calendar` |
+| `calendar get` | read | `{id}` | `calendar`, `busy` (imported snapshots) |
+| `calendar list` | read | none | `calendars` |
+| `availability set` | write | `{calendar_id, expected_version, rules:[...], exceptions?:[dates], idem_key, actor?}` | `calendar` |
+| `busy import` | write | `{calendar_id, source, window:{start,end}, taken_at, blocks:[{start,end,label?}], idem_key, actor?}` | `snapshot`, `action` (`imported`, `replaced`, `unchanged`) |
+| `free` | read | `{calendar_ids?, from, to, min_minutes?}` | per calendar: `free` intervals in UTC and local time, `free_minutes`, DST `notes`; `tzdata` |
+| `plan propose` | read | `{tasks, horizon:{start,end}, policy?, calendar_ids?, base_plan?, solution?, mapping?}` | `plan` (a `schedule-plan.v1`, status `proposed`), `violations`, `unscheduled`, `notes`, `diff?`, `tzdata` |
+| `plan check` | read | `{tasks, plan}` or `{tasks, plan_id, version?}` or `{tasks, blocks, horizon, policy?}`; `calendar_ids?` | `violations`, `errors`, `warnings`, `tasks_changed`, `calendars_changed` |
+| `plan model` | read | same as `plan propose`, plus `name?` | `model` (a `constraint-model.v1`), `mapping`, `unscheduled`, digests |
+| `plan commit` | write | `{plan_id, base_version, digest, tasks_digest, plan, tasks?, allow_violations?, idem_key, actor?}` | `plan_id`, `version`, `digest`, `blocks`, `violations` |
+| `plan clone` | write | `{plan_id, version?, new_id, idem_key, actor?}` | `plan_id`, `version` 1, `forked_from` |
+| `plan get` | read | `{plan_id, version?}` | `plan` (status `committed`), `committed_at`, `actor` |
+| `plan list` | read | none | `plans` |
+| `plan history` | read | `{plan_id}` | `plan`, `versions`, `events` |
+| `plan diff` | read | `{plan_id, from_version, to_version}` | `added`, `removed`, `moved`, `unchanged` |
+| `plan task-updates` | read | `{plan_id, version?, tasks}` | `suggestedUpdates`, `scheduled`, `notes`, `skipped`, `label` |
+| `plan holds` | read | `{plan_id, version?, cancel_all?}` | `holds` (a `calendar-holds.v1`), `summary` |
+| `holds record` | write | `{plan_id, records:[{idempotency_key, status, provider, event_id?, calendar?, note?}], idem_key, actor?}` | `recorded`, `totals` |
+| `holds list` | read | `{plan_id}` | `records` |
 
-See contract rule 5 for the asset names, the checksum file, and how the single-module installer behaves, and rule 9 for version numbers and `schemaVersion`.
+Read commands open the database read-only and store nothing. A read command on a database that does not exist yet fails with `E_MIGRATION`; run `selfcheck` first.
 
-## Contributing
+### Module error codes
 
-[CONTRIBUTING.md](CONTRIBUTING.md) says how to file an issue, set up a checkout, run the checks, and open a pull request. Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md). Report a security vulnerability privately, as [SECURITY.md](SECURITY.md) describes, not in an issue.
+| Code | Exit | Meaning | Typical hint |
+|---|---|---|---|
+| `E_NOT_FOUND` | 1 | The calendar, plan or plan version named in the input does not exist. | Use `calendar list`, `plan list` or `plan history` to find it. |
+| `E_DUPLICATE` | 1 | `calendar add` or `plan clone` named an id that is already in use. | Update the existing one, or choose a new id. |
+| `E_STALE` | 1 | `expected_version` or `base_version` is not the current version: someone else wrote first. `data` has `current_version`. | Read again, redo the change on what is there now, send it with a new `idem_key`. |
+| `E_DIGEST` | 1 | The plan passed to `plan commit` is not the plan its `digest` names. | Commit the plan exactly as `plan propose` returned it. |
+| `E_TASKS_CHANGED` | 1 | A task changed after the plan was proposed, or the `tasks_digest` passed is not the plan's. | Propose again from the current tasks snapshot and ask for approval again. |
+| `E_CALENDAR_CHANGED` | 1 | Working hours or busy time changed after the plan was proposed. | Propose again and ask for approval again. |
+| `E_VIOLATIONS` | 1 | The plan has violations of severity `error`; they are in `data.violations`. | Propose a plan without them, or pass `allow_violations: true` after the person accepted them. |
+| `E_IDEM_CONFLICT` | 1 | The `idem_key` already identifies a different request. | Retry the original request unchanged, or use a new key. |
+| `E_NO_SOLUTION` | 1 | The constraint solution passed to `plan propose` is `infeasible` or `unknown`, so it places nothing. | Ask the constraint module to explain, or use the plan proposed without a solution. |
+| `E_UNSUPPORTED` | 1 | `plan model` was asked for a policy it cannot express (`max_minutes_per_day`). | Leave that field out for `plan model`. |
+| `E_UNKNOWN_HOLD` | 1 | `holds record` named a key no version of the plan has. | Record only keys `plan holds` returned. |
+| `E_HOLD_STATE` | 1 | A hold is recorded as created twice with different events, or canceled without ever being created. | Keep the first event, or record in the order things happened. |
 
-Part of [Ambitious](https://ambitiousbots.com). Licensed under the Apache License, Version 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+## The scheduling model
+
+Version 0.1.0 is deliberately simple. What it does:
+
+- **Calendars.** A calendar is `{id, name, tz, kind, person_ref}`. `tz` is an IANA zone name. `kind` is `person` (default), `resource` or `team`. `person_ref` is matched against a task's `assignee`.
+- **Working hours.** `availability set` replaces a calendar's weekly rules and days off. A rule is `{days:["MO",...], start:"09:00", end:"17:00", valid_from?, valid_to?}` in the calendar's local wall time; `end` may be `24:00`; `{rrule:"FREQ=WEEKLY;BYDAY=MO,TU", start, end}` is accepted as another way to write `days`. `exceptions` is a list of local dates with no working hours. A start or end that falls in the hour skipped when clocks go forward moves to the first valid time after it (`DST_GAP`); one that falls in the hour repeated when clocks go back takes its first occurrence (`DST_OVERLAP`). Both are reported in `notes`.
+- **Busy time.** `busy import` stores busy intervals the bot read from a calendar service. A later import for the same calendar, source and window replaces the earlier one; the same content again is `unchanged`. Labels are optional and never needed.
+- **Free time** is working hours minus busy time.
+- **Effort.** A task needs `estimate_days × hours_per_day × 60` minutes (defaults: 8 hours per day, 1 day when a task has no estimate). Only open tasks (`todo`, `in_progress`, `blocked`, `waiting`) are placed. A prerequisite that is `done` is satisfied. A prerequisite that is canceled, or that is not in the snapshot, leaves its dependents unscheduled with `DEPENDENCY_OPEN`.
+- **Policy.** `{block_minutes (default 120, 5 to 1440), min_block_minutes (default 15), max_minutes_per_day?, hours_per_day (8), default_estimate_days (1), due ("soft" or "hard")}`.
+- **`plan propose`** is a greedy serial scheduler. It takes the ready task with the earliest due date, then the lowest priority number, then the lowest id; places it on the calendar whose `person_ref` is the task's assignee, or, for a task with no assignee, on whichever of the calendars would finish it first (ties by calendar id); and fills that calendar's free time from the later of `--now`, the horizon start and the end of every prerequisite, in blocks of at most `block_minutes`. A task that does not fit inside the horizon is listed in `unscheduled` with `NO_FEASIBLE_SLOT`, and nothing of it is placed. It stores nothing.
+- **`plan check`** is a separate checker that shares no placement code with the scheduler. Its codes extend the task module's schedule vocabulary: `OVERLAP`, `OUTSIDE_HORIZON`, `DEPENDENCY_OPEN`, `DURATION_MISMATCH`, `ASSIGNEE_MISMATCH`, `CLOSED_TASK`, `UNKNOWN_TASK`, `UNKNOWN_CALENDAR`, `DUPLICATE_BLOCK`, `INVALID_INTERVAL`, `OUTSIDE_WORKING_HOURS`, `BUSY_CONFLICT`, `BLOCK_TOO_LONG`, `MULTIPLE_CALENDARS`, `SEQUENCE_ORDER`, `MAX_PER_DAY_EXCEEDED`, `IN_THE_PAST`, `PAST_DUE` and `NOT_SCHEDULED`. Each violation has a `severity`. `PAST_DUE` is a `warning` under `due: "soft"` and an `error` under `"hard"`; `NOT_SCHEDULED` is a `warning`; the rest are `error`. `plan propose` returns the checker's findings on its own output.
+- **Digests.** `plan.tasks_digest` is the snapshot digest the `tasks-snapshot.v1` schema defines. `plan.busy_digest` covers the chosen calendars' zones, working hours and busy time inside the horizon. `plan.digest` covers the horizon, policy, both digests and the blocks.
+
+What it does not do: a task has one assignee and its blocks stay on one calendar; there are no meetings, attendees or rooms booked together; the only recurrence is weekly working hours; busy time is whatever the bot last imported; and no calendar service is ever contacted. Dates in `due` are the end of that local day in the calendar's zone.
+
+### Writes
+
+`plan propose` is the dry run. `plan commit` is the only command that stores a plan, and it changes only the `plan_id` it is given:
+
+1. It recomputes the digest of the plan it was passed and compares it with `digest` (`E_DIGEST`).
+2. It compares `tasks_digest`, and the snapshot in `tasks` when given, with the digest the plan was proposed for (`E_TASKS_CHANGED`).
+3. It compares `base_version` with the plan's current version, 0 for a plan that does not exist yet (`E_STALE`).
+4. It recomputes the calendars' digest (`E_CALENDAR_CHANGED`) and, when `tasks` is given, runs the checker (`E_VIOLATIONS`).
+5. It stores version `base_version + 1`. A stored version is never edited or deleted; the database refuses both.
+
+`plan clone` is the only way to copy a plan: it creates `new_id` at version 1 with `forked_from` naming its source, and leaves the source as it was. Nothing branches silently. Calendar writes take `expected_version`. Every write takes an `idem_key`: a retry of the same request returns the stored answer, and the same key with a different request is `E_IDEM_CONFLICT`. Every write appends one row to an audit table that the database does not let anyone update or delete.
+
+### Task updates
+
+`plan task-updates` needs the current tasks snapshot. For every scheduled task it returns the exact input of the task module's `update` command: `{id, patch:{labels:[...]}, idem_key:"sched:<plan>:<version>:<task>", actor:"ambitious-scheduling"}`. The patch keeps the task's other labels and replaces any earlier `sched:<plan>@v<N>` label with the new one. It never changes a due date: a task the plan finishes after its due date is reported in `notes` as `FINISHES_AFTER_DUE`. The bot forwards the updates; this module never starts the task module. Forwarding them changes the tasks' `updated_at`, so the next proposal needs a fresh snapshot.
+
+### Calendar holds
+
+`plan holds` returns a `calendar-holds.v1` proposal for one committed version. Each hold has a title, `start` and `end` (`utc`, `local` with offset, `time_zone`), a `calendar_hint`, its `source` block and an `idempotency_key` of the form `hold:<plan_id>:<task_id>:<seq>:<16 hex>`, where the hex is the start of the SHA-256 of `calendar_id|start|end`. The key names the block's content and not the version, so an unchanged block keeps its key in a later version.
+
+| `action` | When |
+|---|---|
+| `create` | No event is recorded as created for this key. |
+| `keep` | An event is recorded as created for this key; `external` names it. |
+| `cancel` | An event is recorded as created for a key of this plan that the requested version no longer has, or `cancel_all` was passed; `external` names it. |
+
+After the person approves, the bot creates and cancels events with its own connectors and reports each one with `holds record`: `created` with the service's `event_id`, `canceled`, or `failed`. Asking `plan holds` again then proposes nothing twice. A clone has its own plan id and therefore its own keys: create holds for one of the two plans, not both.
+
+### Constraint model
+
+`plan model` takes the same input as `plan propose` and returns the same question as a `constraint-model.v1` for a constraint solver module, with a `mapping` from model variables back to blocks:
+
+```json
+{"unit":"minute","origin":"2026-01-05T00:00:00.000Z","blocks":[{"task_id":"draft","calendar_id":"sam","seq":0,"start_var":"b0_s","end_var":"b0_e","minutes":120}]}
+```
+
+Times are whole minutes after the horizon start. The model has one interval per block of the greedy plan, with the same block sizes; each start variable's domain is the list of ranges in which the block fits one stretch of free time; `precedence` constraints order a task's blocks and put each task after its prerequisites; one `no_overlap` per calendar; a due date is a `linear` constraint of category `goal`, `hard` or `soft` (weight 1440) by `policy.due`; `makespan` is minimized; and `hints` hold the greedy plan. Tasks the greedy scheduler could not place are left out and listed in `unscheduled`; a task with no assignee stays on the calendar the greedy scheduler chose. `max_minutes_per_day` is not expressed: `plan model` refuses it with `E_UNSUPPORTED`.
+
+The bot passes `data.model` to the solver module and passes the `constraint-solution.v1` it gets back, with the unchanged `mapping`, to `plan propose` as `solution` and `mapping`. The blocks then come from the solution, `plan.solver` is `constraints`, and the same independent checker runs on them.
+
+### Time zone data
+
+Zone rules come from the time zone data built into Node. Every time-dependent answer reports its version in `data.tzdata`, and a plan stores it in `plan.tzdata`, because a change in zone rules can change which instant a local working hour is.
+
+## Example
+
+The dataset in `test/fixtures/work-plan.json` is the task module's example of 104 tasks and 105.5 estimated effort days, 101 of them open. With two calendars working weekdays 09:00 to 17:00 in two time zones and a horizon of 26 weeks from 2026-01-05, `plan propose` with 120-minute blocks places all 101 open tasks in 419 blocks, ending 2026-03-24, with no violations; with one calendar it ends 2026-05-29. `plan model` with 480-minute blocks gives 163 intervals.
+
+## Build and verify
+
+Install [mise](https://mise.jdx.dev). Tool versions are pinned in `.mise.toml`. The kit packages are vendored under `vendor/` and bundled at build time.
+
+```sh
+mise trust && mise install
+npm ci
+npm run release:check
+```
+
+`release:check` runs types, lint and standalone wording, import boundaries, unit, property and CLI tests, the shared contract tests, TLA+/TLC, feature verification and release packaging. `verify/run --doctor`, `--list` and `--only <feature>` support targeted verification.
+
+### On a Debian 13 computer without root
+
+The module needs only Node 24 (24.8.0 or later). TLC, which `npm run tlc` and the `models` feature use, also needs Java and is a development check, not something the module needs to run.
+
+```sh
+cd "$HOME"
+curl -fsSLO https://nodejs.org/dist/v24.8.0/node-v24.8.0-linux-x64.tar.xz
+echo "2598641d188b41793930917f1a99a81c9615856b4205d408a44ab676c1acbb3d  node-v24.8.0-linux-x64.tar.xz" | sha256sum -c
+mkdir -p "$HOME/.local/node" && tar -xJf node-v24.8.0-linux-x64.tar.xz -C "$HOME/.local/node" --strip-components=1
+export PATH="$HOME/.local/node/bin:$PATH"
+
+git clone https://github.com/AmbitiousBots/ambitious-scheduling.git && cd ambitious-scheduling
+npm ci
+npm run typecheck && npm run lint && npm run depcruise
+npm test
+npm run contract
+node verify/run --only build --only commands --only selfcheck --only calendars --only time-zones --only propose --only independent-check --only commit --only approval-flow --only constraint-model --only contract --only standalone
+npm run release:build
+
+export AMBITIOUS_HOME="$HOME/ambitious"
+mkdir -p "$AMBITIOUS_HOME/bin" && cp release/ambitious-scheduling-0.1.0.mjs "$AMBITIOUS_HOME/bin/" && ln -sf ambitious-scheduling-0.1.0.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
+node "$AMBITIOUS_HOME/bin/ambitious-scheduling" selfcheck
+```
+
+If the computer already has Node 24.8 or later, skip the download. CI runs these steps in a Debian 13 container as a user without root.
+
+## Bot skills
+
+`skills/scheduling-for-bots/SKILL.md` tells a bot how to run the approval flow. `skills/scheduling-page/SKILL.md` tells it how to show a plan as a Grok Bot Page. The module itself renders nothing.
+
+## License
+
+Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).

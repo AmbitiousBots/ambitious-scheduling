@@ -1,11 +1,14 @@
 # Changelog
 
-All notable changes to this GitHub template are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-This repository publishes no release assets. A filename such as `ambitious-template-<version>.tgz` is the Ambitious Bot template in an [ambitious-kit](https://github.com/AmbitiousBots/ambitious-kit/releases) release, not an archive of this repository. A module you create from this GitHub template should keep its own changelog once you begin publishing module releases.
+All notable changes to this module are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow the module contract's versioning rule.
 
 ## Unreleased
 
 ### Added
 
-- First public GitHub template: the module contract as published in ambitious-kit `kit-v0.2.7`, skill placeholders, agent guides, and the standard open-source files used by existing Ambitious module repositories.
+- 0.1.0: calendars with IANA time zones, weekly working hours with days off, and busy time imported as data.
+- `free`, and `plan propose`, a greedy scheduler that places a tasks snapshot into free working time, with `plan check`, an independent checker.
+- `plan commit` with optimistic concurrency and digest checks, `plan clone`, `plan get`, `plan list`, `plan history` and `plan diff`.
+- `plan task-updates`, the task updates a bot forwards to a task module, and `plan holds` with `holds record` and `holds list`, the calendar holds a bot may create, keep or cancel through its own connectors.
+- `plan model`, the same planning question as a `constraint-model.v1`, and `plan propose` from a `constraint-solution.v1`.
+- TLA+ models of plan commit and of the calendar hold lifecycle.

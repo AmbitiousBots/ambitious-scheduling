@@ -17,33 +17,23 @@ It needs the pinned tools (`mise trust && mise install`): Java, and `tla2tools.j
 
 ## What is covered
 
-Last confirmed in step with the code at commit: none yet. When you add the first real model, write the commit here, and move it forward only after you have read the covered code at the new commit and confirmed that the model still describes it.
+Last confirmed in step with the code at commit `6bcd4c12e4384931f067b982184e63bd730f6da7`. Move this commit forward only after you have read the covered code at the new commit and confirmed that the model still describes it.
 
 | Model | Covers | Each model step is this code |
 |---|---|---|
-| `spec/Sample.tla` | Nothing in this module. It is the starting example: a count that must never go past `Capacity`. Replace it with the module's first real model. | |
-
-For each real model, add a row: the file, the source files and functions it describes, and which piece of code each model step stands for. One model step must be one indivisible step in the code, for example one transaction.
+| `spec/PlanCommit.tla` | `commitPlan` and `clonePlan` in `src/db/store.ts` | `Propose`: `plan propose` reading the current version and the tasks digest; it stores nothing. `EditTask`: a task changing in the task module. `RefuseStale`: the `E_STALE` refusal. `RefuseTasksChanged`: the `E_TASKS_CHANGED` refusals. `Commit`: the one write transaction that inserts the next row of `plan_versions`, moves `plans.version` and stores the receipt. `Retry`: `withReceipt` returning the stored answer for a used `idem_key`. `Clone`: `clonePlan`, which inserts a new plan and never writes the source. |
+| `spec/HoldLifecycle.tla` | `holdsProposal` and `holdKey` in `src/domain/holds.ts`, `recordHolds` in `src/db/store.ts` | `CommitVersion`: a new plan version with any set of blocks. `CreateAndRecord`: the bot creating an event for a `create` hold and `holds record` with `created`. `CancelAndRecord`: the bot removing an event for a `cancel` hold and `holds record` with `canceled`. `AskAgain`: `plan holds` run again, which reads only. |
 
 ## The properties, in plain words
 
-For each invariant, add a row that a person can read without knowing TLA+.
+`spec/README.md` lists every invariant in plain words with a state diagram of each lifecycle, and names the broken variant that shows each protection is needed.
 
-| Invariant | Promise | Harm if it broke |
-|---|---|---|
-| `WithinCapacity` (sample) | The count never goes past the capacity. | None; it is the sample. |
-
-Also write down the bounds (how many items, how many actors) and what the model leaves out. A pass covers the model within those bounds, not the whole module.
-
-## Each property must be seen to fail
-
-`spec/broken/` holds copies of a model with one protection removed, and `spec/broken/EXPECTED.json` names the invariant each must break and why. `npm run tlc` fails if a broken variant passes or breaks a different invariant. A property with no broken variant has never been seen to fail and proves nothing yet.
+Bounds and assumptions: two writers and one plan id; two blocks and three versions; a write command is one SQLite transaction; the bot records a calendar event right after creating or removing it. The models do not cover a bot that creates an event and never records it: the calendar then holds an event this module does not know about, and the next `plan holds` proposes it again.
 
 ## When you change covered code
 
-1. Decide whether the change alters a step in the coverage table: a new state, a different order, a new way to fail. If it does not, run `npm run tlc` and you are done.
+1. Decide whether the change alters a step in the table above. If it does not, run `npm run tlc` and you are done.
 2. If it does, change the model first so it describes the new design, run `npm run tlc`, then change the code to match.
-3. If TLC reports a violation, read it with the pstack `/statechart` skill (pstack is a public plugin of agent skills for the Cursor editor; install it from the plugin marketplace inside Cursor by searching for "pstack". `/statechart` turns TLC output into the shortest failing path in plain words, and draws the state chart when the check passes. Without it, read the numbered states TLC prints from top to bottom: each one is one step, and the last is where the rule broke). Retell the path in the code's terms.
-4. Decide which is wrong. If the path can happen in the code, it is a real bug: fix the code, keep the property. If it cannot, the model is wrong: fix the model so it matches the code, and say in the pull request what was wrong with it. Never weaken or delete an invariant to get a pass.
-5. For a new protection, add a broken variant that removes only that protection, with its entry in `EXPECTED.json`.
-6. Update the coverage table and the sync commit above.
+3. If TLC reports a violation, read the numbered states it prints from top to bottom: each one is one step, and the last is where the rule broke. Decide which is wrong. If the path can happen in the code, fix the code and keep the property. If it cannot, fix the model and say in the pull request what was wrong with it. Never weaken or delete an invariant to get a pass.
+4. For a new protection, add a broken variant that removes only that protection, with its entry in `spec/broken/EXPECTED.json`.
+5. Update the coverage table and the commit above.

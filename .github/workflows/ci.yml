@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-check:
+    name: Verify the scheduling module
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+    steps:
+      - name: Check out the repository (actions/checkout v7.0.1)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install pinned tools (jdx/mise-action v5.2.8)
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785
+        with:
+          version: 2026.11.8
+      - run: npm ci
+      - run: npm run release:check
+      - run: npm audit
+
+  debian-13:
+    name: Debian 13, Node 24.8.0, no root
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: debian:13
+    steps:
+      - name: Install what a fresh computer needs and create the user (the only steps run as root)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl xz-utils git
+          useradd --create-home --shell /bin/bash box
+      - name: Check out the repository (actions/checkout v7.0.1)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Hand the checkout to the user
+        run: chown -R box:box "$GITHUB_WORKSPACE"
+      - name: Install Node 24.8.0 under the user's home, then build, test and verify without root
+        run: |
+          runuser -u box -- bash -euo pipefail -c '
+            cd "$GITHUB_WORKSPACE"
+            export HOME=/home/box
+            curl -fsSL https://nodejs.org/dist/v24.8.0/node-v24.8.0-linux-x64.tar.xz -o "$HOME/node.tar.xz"
+            echo "2598641d188b41793930917f1a99a81c9615856b4205d408a44ab676c1acbb3d  $HOME/node.tar.xz" | sha256sum -c
+            mkdir -p "$HOME/.local/node"
+            tar -xJf "$HOME/node.tar.xz" -C "$HOME/.local/node" --strip-components=1
+            export PATH="$HOME/.local/node/bin:$PATH"
+            test "$(id -u)" != 0
+            node --version
+            node -p "process.versions.tz"
+            npm ci
+            npm run typecheck
+            npm run lint
+            npm run depcruise
+            npm test
+            npm run contract
+            node verify/run --only build --only commands --only selfcheck --only calendars --only time-zones --only propose --only independent-check --only commit --only approval-flow --only constraint-model --only contract --only standalone
+            npm run release:build
+            export AMBITIOUS_HOME="$HOME/ambitious"
+            mkdir -p "$AMBITIOUS_HOME/bin"
+            cp release/ambitious-scheduling-0.1.0.mjs "$AMBITIOUS_HOME/bin/"
+            ln -sf ambitious-scheduling-0.1.0.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
+            cd "$HOME"
+            node "$AMBITIOUS_HOME/bin/ambitious-scheduling" selfcheck
+            node "$AMBITIOUS_HOME/bin/ambitious-scheduling" commands
+          '
