@@ -5,7 +5,7 @@
 ```sh
 npm run build
 node examples/end-to-end/run.mjs \
-  --tasks /path/to/ambitious-tasks-0.1.2.mjs \
+  --tasks /path/to/ambitious-tasks-0.1.3.mjs \
   --constraints /path/to/ambitious-constraints-0.1.0.pyz --python python3.13
 ```
 
