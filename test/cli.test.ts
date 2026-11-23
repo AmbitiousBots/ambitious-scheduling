@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { describeSchemaProblems, schemaProblems } from "@ambitious/kit/domain/json-schema";
@@ -42,6 +43,34 @@ const commitInput = (plan: Readonly<Record<string, unknown>>, planId: string, ba
   idem_key: idemKey,
   actor: "tester",
   ...extra,
+});
+
+test("--help lists commands and does not run the named command", (t) => {
+  const home = scratch(t);
+  const listed = success(home, "commands");
+  const invoke = (args: readonly string[], stdin = "") => {
+    const result = spawnSync(process.execPath, ["dist/ambitious-scheduling.mjs", ...args, "--now", NOW, "--seed", "7"], {
+      input: stdin,
+      encoding: "utf8",
+      env: { ...process.env, AMBITIOUS_HOME: home },
+    });
+    assert.ifError(result.error);
+    assert.equal(result.stdout.trimEnd().split("\n").length, 1, result.stderr);
+    return { status: result.status, envelope: object(JSON.parse(result.stdout)) };
+  };
+  const help = invoke(["--help"], "not json");
+  assert.equal(help.status, 0);
+  assert.equal(help.envelope.ok, true);
+  assert.equal(help.envelope.command, "commands");
+  assert.deepEqual(help.envelope.data, listed);
+  const named = invoke(["calendar add", "--help"], "not json");
+  assert.equal(named.status, 0);
+  assert.equal(named.envelope.command, "calendar add");
+  assert.deepEqual(items(object(named.envelope.data).commands).map((entry) => object(entry).name), ["calendar add"]);
+  const unknown = invoke(["no-such", "--help"]);
+  assert.equal(unknown.status, 1);
+  assert.equal(object(items(unknown.envelope.errors)[0]).code, "E_USAGE");
+  assert.equal(existsSync(join(home, "scheduling")), false);
 });
 
 test("the 104-task work plan is placed on two calendars with nothing left over, nothing wrong, and the same bytes every time", (t) => {

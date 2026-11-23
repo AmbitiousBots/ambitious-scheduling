@@ -7,7 +7,7 @@ description: Place tasks into free working time with the Ambitious Scheduling CL
 
 Use the installed `ambitious-scheduling` binary at `$AMBITIOUS_HOME/bin/ambitious-scheduling`. When `AMBITIOUS_HOME` is not set, that path is `/workspace/ambitious/bin/ambitious-scheduling`. Run `selfcheck --json` at routine start and read `data.problems`. Resolve a reported problem before writing data. Run `commands` to list the operations this binary offers. Read the module documentation at https://github.com/AmbitiousBots/ambitious-scheduling#readme for every input shape.
 
-Pass one JSON object on stdin or with `--in`, never both. Keep every input file outside `/home/box/agent-data`. You may pass `--json`; it changes nothing. Pass `--now` and `--seed` when you need a repeatable result, and keep the `now`, `seed` and `version` values from `meta` with the evidence.
+Pass one JSON object on stdin or with `--in`, never both. Keep every input file outside `/home/box/agent-data`. You may pass `--json`; it changes nothing. You may pass `--help`, with or without a command name, to list commands in one envelope; it does not run the command, read input or open the database. Pass `--now` and `--seed` when you need a repeatable result, and keep the `now`, `seed` and `version` values from `meta` with the evidence.
 
 This module never contacts a calendar service or another module. You carry the data in and out, and the person decides.
 
@@ -24,7 +24,7 @@ Follow this order every time. Do not skip or reorder a step.
 7. Run `plan holds` and show the person what would be created, kept and canceled. Create or cancel calendar events only after the person approves, through your own calendar connector, one event per hold, with the title and times given. Never invent an event the proposal does not list.
 8. Report what you did with `holds record`: `created` with the event id the calendar service returned, `canceled`, or `failed` with a note. Do this right after each batch, so a later run proposes nothing twice.
 
-Always pass an `idem_key` for a write. Choose one stable key per intended action and keep both the key and the input unchanged for a retry. `E_IDEM_CONFLICT` means the key was used for a different request: look at the original action, do not change the payload under the same key.
+Always pass an `idem_key` for a write. Choose one stable key per intended action and keep both the key and the input unchanged for a retry. `E_IDEM_CONFLICT` means the key was used for a different request: look at the original action, do not change the payload under the same key. A write `actor`, when you send one, is 1 to 200 Unicode characters, with no control characters or line breaks and no leading or trailing whitespace. Internal spaces are allowed and nothing is trimmed. When you leave `actor` out, the stored actor is `caller`.
 
 When a commit is refused, do what the code says and ask again. `E_STALE`: someone committed first; read the plan, propose again. `E_TASKS_CHANGED` or `E_CALENDAR_CHANGED`: a task, working hours or busy time changed since the proposal; read them again, propose again, and get approval for the new plan. `E_DIGEST`: you changed the plan; commit it exactly as proposed. Never work around a refusal by editing blocks by hand.
 

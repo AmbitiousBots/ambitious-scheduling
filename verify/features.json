@@ -51,7 +51,7 @@
   },
   {
     "id": "contract",
-    "userVisible": "The module answers like every other module: one JSON answer per command, fixed exit codes, repeatable output, no access to the bot's private data, and analysis that never changes data.",
+    "userVisible": "The module answers like every other module: one JSON answer per command, fixed exit codes, repeatable output, no access to the bot's private data, analysis that never changes data, and a command list from --help.",
     "check": "npm run --silent contract"
   },
   {

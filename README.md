@@ -8,13 +8,13 @@ The module never calls another module and never contacts a calendar service. Tas
 
 ## Run
 
-The release contains `ambitious-scheduling-0.1.0.mjs` and `SHA256SUMS`. Verify the checksum before running the file with Node 24. The binary includes its dependencies and migrations; it needs no npm install or other repository files.
+The release contains `ambitious-scheduling-0.1.1.mjs` and `SHA256SUMS`. Verify the checksum before running the file with Node 24. The binary includes its dependencies and migrations; it needs no npm install or other repository files.
 
 ```sh
 shasum -a 256 -c SHA256SUMS
 export AMBITIOUS_HOME="$(mktemp -d)"
-node ambitious-scheduling-0.1.0.mjs selfcheck
-printf '%s\n' '{"id":"sam","name":"Sam","tz":"Europe/Paris","person_ref":"sam","idem_key":"add-sam"}' | node ambitious-scheduling-0.1.0.mjs calendar add
+node ambitious-scheduling-0.1.1.mjs selfcheck
+printf '%s\n' '{"id":"sam","name":"Sam","tz":"Europe/Paris","person_ref":"sam","idem_key":"add-sam"}' | node ambitious-scheduling-0.1.1.mjs calendar add
 ```
 
 The command words are separate arguments: `ambitious-scheduling calendar add`, `ambitious-scheduling plan propose`. Choose a persistent `AMBITIOUS_HOME` for real work. The default is `/workspace/ambitious`, the module storage directory on a Grok Bot computer. The database lives at `$AMBITIOUS_HOME/scheduling/scheduling.sqlite`; `--db` overrides that file. Modules refuse `/home/box/agent-data`, the bot's private state directory, including paths that reach it through symbolic links.
@@ -24,10 +24,12 @@ The kit's [installer](https://github.com/AmbitiousBots/ambitious-kit#start-a-mod
 ## JSON interface
 
 ```text
-ambitious-scheduling <command> [--in input.json] [--db scheduling.sqlite] [--now ISO8601] [--seed integer] [--json]
+ambitious-scheduling <command> [--in input.json] [--db scheduling.sqlite] [--now ISO8601] [--seed integer] [--json] [--help]
 ```
 
 Pass one JSON object on stdin or with `--in`, never both. Every response is one line with `{ ok, schemaVersion, module, command, data, errors, meta }`. Successful commands exit 0; caller errors exit 1; database and internal failures exit 2. The same binary, database state, input, `--now` and `--seed` produce identical stdout bytes. `--now` is the earliest moment a plan may start: nothing is placed in the past. Every instant in output is UTC with a `Z`; local times carry their offset and the calendar's zone.
+
+`--help` answers with one envelope and exit 0. With no command name it lists every command, the same as `commands`. With a command name, `data.commands` holds that one command. It does not run the command, read input or open the database.
 
 | Command | Access | Input | Result in `data` |
 |---|---|---|---|
@@ -99,7 +101,7 @@ What it does not do: a task has one assignee and its blocks stay on one calendar
 4. It recomputes the calendars' digest (`E_CALENDAR_CHANGED`) and, when `tasks` is given, runs the checker (`E_VIOLATIONS`).
 5. It stores version `base_version + 1`. A stored version is never edited or deleted; the database refuses both.
 
-`plan clone` is the only way to copy a plan: it creates `new_id` at version 1 with `forked_from` naming its source, and leaves the source as it was. Nothing branches silently. Calendar writes take `expected_version`. Every write takes an `idem_key`: a retry of the same request returns the stored answer, and the same key with a different request is `E_IDEM_CONFLICT`. Every write appends one row to an audit table that the database does not let anyone update or delete.
+`plan clone` is the only way to copy a plan: it creates `new_id` at version 1 with `forked_from` naming its source, and leaves the source as it was. Nothing branches silently. Calendar writes take `expected_version`. Every write takes an `idem_key`: a retry of the same request returns the stored answer, and the same key with a different request is `E_IDEM_CONFLICT`. A write's `actor`, when sent, is 1 to 200 Unicode characters, with no control characters or line breaks and no leading or trailing whitespace. Internal spaces are allowed and nothing is trimmed. When `actor` is left out, the stored actor is `caller`. Every write appends one row to an audit table that the database does not let anyone update or delete.
 
 ### Task updates
 
@@ -173,7 +175,7 @@ node verify/run --only build --only commands --only selfcheck --only calendars -
 npm run release:build
 
 export AMBITIOUS_HOME="$HOME/ambitious"
-mkdir -p "$AMBITIOUS_HOME/bin" && cp release/ambitious-scheduling-0.1.0.mjs "$AMBITIOUS_HOME/bin/" && ln -sf ambitious-scheduling-0.1.0.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
+mkdir -p "$AMBITIOUS_HOME/bin" && cp release/ambitious-scheduling-0.1.1.mjs "$AMBITIOUS_HOME/bin/" && ln -sf ambitious-scheduling-0.1.1.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
 node "$AMBITIOUS_HOME/bin/ambitious-scheduling" selfcheck
 ```
 
