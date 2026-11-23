@@ -1,3 +1,4 @@
+import { parseActor } from "@ambitious/kit/domain/actor";
 import { failure } from "@ambitious/kit/domain/failure";
 import { isRecord } from "@ambitious/kit/domain/json";
 import { kindField, parseExceptions, parseRules, personField, zoneField, type CalendarKind, type Rule } from "./calendar.ts";
@@ -14,7 +15,7 @@ const WRITE = ["idem_key", "actor"] as const;
 const MAX_HORIZON_MINUTES = 3 * 366 * 1440;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
-const write = (record: Fields): Write => ({ idem_key: text(record.idem_key, "idem_key"), actor: record.actor === undefined ? "caller" : text(record.actor, "actor") });
+const write = (record: Fields): Write => ({ idem_key: text(record.idem_key, "idem_key"), actor: record.actor === undefined ? "caller" : parseActor(record.actor) });
 
 export const idField = (raw: unknown, field: string): string => {
   if (typeof raw !== "string" || !ID.test(raw)) return invalid(field, "an identifier of 1 to 100 letters, digits, dots, hyphens or underscores, starting with a letter or digit");

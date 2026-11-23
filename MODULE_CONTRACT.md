@@ -49,7 +49,7 @@ The kit's shared helpers, lint rules, dependency rules and contract tests are re
 A module MUST ship exactly one binary, invoked as:
 
 ```text
-ambitious-<module> <command> [--in file] [--db path] [--now ISO8601] [--seed int] [--json]
+ambitious-<module> <command> [--in file] [--db path] [--now ISO8601] [--seed int] [--json] [--help]
 ```
 
 Input JSON MUST be read from stdin or from the file named by `--in`. Output MUST be written to stdout and MUST always be one JSON envelope:
@@ -205,10 +205,18 @@ Details fixed by this contract:
 - `module` is the name after `ambitious-`. `command` is the command words joined by one space (`"dep add"`). When no known command was given, `command` is `""` and the error is `E_USAGE`.
 - stdout MUST hold the envelope on a single line, UTF-8, ended by one newline. The examples in this file are wrapped for reading.
 - `--json` MUST be accepted by every command and changes nothing, because output is always JSON. A bot can pass it always.
+- `--help` MUST be accepted, with or without a command name, and MUST answer with one successful envelope, exit 0, and nothing else on stdout. With no command name it answers exactly as `commands` does, with `command` set to `"commands"`. With a command name, `command` is that name and `data.commands` holds that one command's entry. `--help` MUST NOT run the command, read stdin or open the database. An unknown command, or any other usage problem beside `--help`, is still `E_USAGE`, and every other unknown flag is still `E_USAGE`.
 - `--in` takes a file path, not inline JSON. Giving both `--in` and non-empty stdin is `E_USAGE`. A command that needs input and gets none fails with `E_INPUT_SCHEMA`.
 - Input MUST be parsed and checked against the command's input schema at the CLI boundary before any logic runs. Input that is not JSON or does not match is `E_INPUT_SCHEMA`, exit 1.
-- Every module MUST provide a `commands` command. It takes no input, opens no database, and lists every command of the module, itself and `selfcheck` included, in `data.commands` as `{ "name", "access", "input" }`: `access` is `"read"`, `"write"` or `"none"` (no database), and `input` says whether the command reads input JSON. A bot can use it to learn what a module offers, and the contract tests use it to find the read commands.
-- Usage errors MUST still produce an envelope on stdout. A module MUST NOT print help text, stack traces or progress to stdout.
+- Every module MUST provide a `commands` command. It takes no input, opens no database, and lists every command of the module, itself and `selfcheck` included, in `data.commands`, sorted by name, as `{ "name", "access", "input" }`: `access` is `"read"`, `"write"` or `"none"` (no database), and `input` says whether the command reads input JSON. A bot can use it to learn what a module offers, and the contract tests use it to find the read commands.
+- A command that reads input SHOULD also list its input shape: `fields`, a list of `{ "name", "type", "required" }` with `type` one of `string`, `number`, `integer`, `boolean`, `object`, `array`, and `example`, one input object on one line. A command listed without `fields` is valid; its shape is then only in the module's documentation.
+
+  ```json
+  { "name": "add", "access": "write", "input": true, "fields": [{ "name": "title", "type": "string", "required": true }, { "name": "actor", "type": "string", "required": false }], "example": { "title": "Ship the release", "actor": "owner" } }
+  ```
+
+  A listed `example` MUST hold every field listed as required, only listed fields, and for each a value of the listed type; `null` is never an example value. The contract tests send the example as valid input to the command, on a fresh `AMBITIOUS_HOME`, and it MUST NOT be answered with `E_INPUT_SCHEMA`. Because it is sent, the example MUST be safe to run against a fresh `AMBITIOUS_HOME`: it may store one row there and MUST NOT reach outside it. The contract tests also send the example once without each field listed as required, and each of those MUST fail with `E_INPUT_SCHEMA`.
+- Usage errors MUST still produce an envelope on stdout. A module MUST NOT print help text, stack traces or progress to stdout; the answer to `--help` is the envelope above, not a usage text.
 - An unexpected exception MUST be caught at the top of the CLI and reported as `E_INTERNAL`, exit 2, with the stack trace on stderr only.
 
 ### Rule 2: `--now` and `--seed` echoed in `meta`
@@ -392,7 +400,7 @@ SHA256SUMS
 The runtime lock is a list of requirements in `pip`'s format. Every line names one package at one exact version (`==`) with one or more `--hash=sha256:` values, one for each platform's file, and nothing else: no index address, no range, no option.
 
 ```text
-$ node ambitious-install-0.4.0.mjs constraints 0.1.0 --kind pyz --runtime --from https://example.com/releases/constraints-v0.1.0
+$ node ambitious-install-0.4.9.mjs constraints 0.1.0 --kind pyz --runtime --from https://example.com/releases/constraints-v0.1.0
 ```
 
 With `--runtime` the installer installs the binary as before and then builds the runtime. `data.runtime` reports `action` (`installed` or `unchanged`), the lock's file name and SHA-256, and the path:

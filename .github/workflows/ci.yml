@@ -74,12 +74,12 @@ jobs:
             npm run release:build
             export AMBITIOUS_HOME="$HOME/ambitious"
             mkdir -p "$AMBITIOUS_HOME/bin"
-            cp release/ambitious-scheduling-0.1.0.mjs "$AMBITIOUS_HOME/bin/"
-            ln -sf ambitious-scheduling-0.1.0.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
+            cp release/ambitious-scheduling-0.1.1.mjs "$AMBITIOUS_HOME/bin/"
+            ln -sf ambitious-scheduling-0.1.1.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
             cd "$HOME"
             node "$AMBITIOUS_HOME/bin/ambitious-scheduling" selfcheck
             node "$AMBITIOUS_HOME/bin/ambitious-scheduling" commands
             curl -fsSL https://github.com/AmbitiousBots/ambitious-tasks/releases/download/tasks-v0.1.3/ambitious-tasks-0.1.3.mjs -o "$HOME/ambitious-tasks-0.1.3.mjs"
             echo "07aea7f45c596e93b805670c4554212893a7a587e36b2d8a74f9153847706e6a  $HOME/ambitious-tasks-0.1.3.mjs" | sha256sum -c
-            node "$GITHUB_WORKSPACE/examples/end-to-end/run.mjs" --tasks "$HOME/ambitious-tasks-0.1.3.mjs" --scheduling "$AMBITIOUS_HOME/bin/ambitious-scheduling-0.1.0.mjs"
+            node "$GITHUB_WORKSPACE/examples/end-to-end/run.mjs" --tasks "$HOME/ambitious-tasks-0.1.3.mjs" --scheduling "$AMBITIOUS_HOME/bin/ambitious-scheduling-0.1.1.mjs"
           '
