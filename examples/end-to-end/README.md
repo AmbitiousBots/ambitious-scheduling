@@ -5,8 +5,8 @@
 ```sh
 npm run build
 node examples/end-to-end/run.mjs \
-  --tasks /path/to/ambitious-tasks-0.1.3.mjs \
-  --constraints /path/to/ambitious-constraints-0.1.0.pyz --python python3.13
+  --tasks /path/to/ambitious-tasks-0.1.4.mjs \
+  --constraints /path/to/ambitious-constraints-0.1.1.pyz --python python3.13
 ```
 
 `--tasks` is required. `--scheduling` defaults to `dist/ambitious-scheduling.mjs`. `--constraints` is optional: without it, or when the constraints module answers `E_RUNTIME` because its pinned runtime is not installed, the example says so and goes on with the greedy plan. The constraints module finds its runtime under `AMBITIOUS_HOME`, so set that to the directory the runtime was installed in.

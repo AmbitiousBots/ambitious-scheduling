@@ -8,13 +8,13 @@ The module never calls another module and never contacts a calendar service. Tas
 
 ## Run
 
-The release contains `ambitious-scheduling-0.1.1.mjs` and `SHA256SUMS`. Verify the checksum before running the file with Node 24. The binary includes its dependencies and migrations; it needs no npm install or other repository files.
+The release contains `ambitious-scheduling-0.1.2.mjs` and `SHA256SUMS`. Verify the checksum before running the file with Node 24. The binary includes its dependencies and migrations; it needs no npm install or other repository files.
 
 ```sh
 shasum -a 256 -c SHA256SUMS
 export AMBITIOUS_HOME="$(mktemp -d)"
-node ambitious-scheduling-0.1.1.mjs selfcheck
-printf '%s\n' '{"id":"sam","name":"Sam","tz":"Europe/Paris","person_ref":"sam","idem_key":"add-sam"}' | node ambitious-scheduling-0.1.1.mjs calendar add
+node ambitious-scheduling-0.1.2.mjs selfcheck
+printf '%s\n' '{"id":"sam","name":"Sam","tz":"Europe/Paris","person_ref":"sam","idem_key":"add-sam"}' | node ambitious-scheduling-0.1.2.mjs calendar add
 ```
 
 The command words are separate arguments: `ambitious-scheduling calendar add`, `ambitious-scheduling plan propose`. Choose a persistent `AMBITIOUS_HOME` for real work. The default is `/workspace/ambitious`, the module storage directory on a Grok Bot computer. The database lives at `$AMBITIOUS_HOME/scheduling/scheduling.sqlite`; `--db` overrides that file. Modules refuse `/home/box/agent-data`, the bot's private state directory, including paths that reach it through symbolic links.
@@ -145,7 +145,7 @@ The dataset in `test/fixtures/work-plan.json` is the task module's example of 10
 
 ## Build and verify
 
-Install [mise](https://mise.jdx.dev). Tool versions are pinned in `.mise.toml`. The kit packages are vendored under `vendor/` and bundled at build time.
+Install [mise](https://mise.jdx.dev). Tool versions are pinned in `.mise.toml`. The kit 0.4.9 archives are in `vendor/`. The release bundles the kit runtime.
 
 ```sh
 mise trust && mise install
@@ -161,9 +161,9 @@ The module needs only Node 24 (24.8.0 or later). TLC, which `npm run tlc` and th
 
 ```sh
 cd "$HOME"
-curl -fsSLO https://nodejs.org/dist/v24.8.0/node-v24.8.0-linux-x64.tar.xz
-echo "2598641d188b41793930917f1a99a81c9615856b4205d408a44ab676c1acbb3d  node-v24.8.0-linux-x64.tar.xz" | sha256sum -c
-mkdir -p "$HOME/.local/node" && tar -xJf node-v24.8.0-linux-x64.tar.xz -C "$HOME/.local/node" --strip-components=1
+curl -fsSLO https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-x64.tar.xz
+echo "4f2b175a6d53a5c617a80dba2676238a0688cef28c6da4eba35c7d844e66fcfb  node-v24.22.3-linux-x64.tar.xz" | sha256sum -c
+mkdir -p "$HOME/.local/node" && tar -xJf node-v24.22.3-linux-x64.tar.xz -C "$HOME/.local/node" --strip-components=1
 export PATH="$HOME/.local/node/bin:$PATH"
 
 git clone https://github.com/AmbitiousBots/ambitious-scheduling.git && cd ambitious-scheduling
@@ -175,7 +175,7 @@ node verify/run --only build --only commands --only selfcheck --only calendars -
 npm run release:build
 
 export AMBITIOUS_HOME="$HOME/ambitious"
-mkdir -p "$AMBITIOUS_HOME/bin" && cp release/ambitious-scheduling-0.1.1.mjs "$AMBITIOUS_HOME/bin/" && ln -sf ambitious-scheduling-0.1.1.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
+mkdir -p "$AMBITIOUS_HOME/bin" && cp release/ambitious-scheduling-0.1.2.mjs "$AMBITIOUS_HOME/bin/" && ln -sf ambitious-scheduling-0.1.2.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
 node "$AMBITIOUS_HOME/bin/ambitious-scheduling" selfcheck
 ```
 

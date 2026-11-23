@@ -2,6 +2,12 @@
 
 All notable changes to this module are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow the module contract's versioning rule.
 
+## 0.1.2 - 2026-11-23
+
+### Changed
+
+- The Debian 13 release check uses Node 24.22.3 and tests the scheduling bundle against tasks 0.1.4.
+
 ## 0.1.1 - 2026-11-23
 
 ### Changed

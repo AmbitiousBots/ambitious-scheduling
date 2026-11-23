@@ -29,12 +29,12 @@ jobs:
         uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78
         with:
           version: 2026.11.12
-      - run: npm ci
+      - run: npm ci --strict-peer-deps
       - run: npm run release:check
       - run: npm audit
 
   debian-13:
-    name: Debian 13, Node 24.8.0, no root
+    name: Debian 13, Node 24.22.3, no root
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     container:
@@ -51,13 +51,13 @@ jobs:
           persist-credentials: false
       - name: Hand the checkout to the user
         run: chown -R box:box "$GITHUB_WORKSPACE"
-      - name: Install Node 24.8.0 under the user's home, then build, test and verify without root
+      - name: Install Node 24.22.3 under the user's home, then build, test and verify without root
         run: |
           runuser -u box -- bash -euo pipefail -c '
             cd "$GITHUB_WORKSPACE"
             export HOME=/home/box
-            curl -fsSL https://nodejs.org/dist/v24.8.0/node-v24.8.0-linux-x64.tar.xz -o "$HOME/node.tar.xz"
-            echo "2598641d188b41793930917f1a99a81c9615856b4205d408a44ab676c1acbb3d  $HOME/node.tar.xz" | sha256sum -c
+            curl -fsSL https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-x64.tar.xz -o "$HOME/node.tar.xz"
+            echo "4f2b175a6d53a5c617a80dba2676238a0688cef28c6da4eba35c7d844e66fcfb  $HOME/node.tar.xz" | sha256sum -c
             mkdir -p "$HOME/.local/node"
             tar -xJf "$HOME/node.tar.xz" -C "$HOME/.local/node" --strip-components=1
             export PATH="$HOME/.local/node/bin:$PATH"
@@ -74,12 +74,12 @@ jobs:
             npm run release:build
             export AMBITIOUS_HOME="$HOME/ambitious"
             mkdir -p "$AMBITIOUS_HOME/bin"
-            cp release/ambitious-scheduling-0.1.1.mjs "$AMBITIOUS_HOME/bin/"
-            ln -sf ambitious-scheduling-0.1.1.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
+            cp release/ambitious-scheduling-0.1.2.mjs "$AMBITIOUS_HOME/bin/"
+            ln -sf ambitious-scheduling-0.1.2.mjs "$AMBITIOUS_HOME/bin/ambitious-scheduling"
             cd "$HOME"
             node "$AMBITIOUS_HOME/bin/ambitious-scheduling" selfcheck
             node "$AMBITIOUS_HOME/bin/ambitious-scheduling" commands
-            curl -fsSL https://github.com/AmbitiousBots/ambitious-tasks/releases/download/tasks-v0.1.3/ambitious-tasks-0.1.3.mjs -o "$HOME/ambitious-tasks-0.1.3.mjs"
-            echo "07aea7f45c596e93b805670c4554212893a7a587e36b2d8a74f9153847706e6a  $HOME/ambitious-tasks-0.1.3.mjs" | sha256sum -c
-            node "$GITHUB_WORKSPACE/examples/end-to-end/run.mjs" --tasks "$HOME/ambitious-tasks-0.1.3.mjs" --scheduling "$AMBITIOUS_HOME/bin/ambitious-scheduling-0.1.1.mjs"
+            curl -fsSL https://github.com/AmbitiousBots/ambitious-tasks/releases/download/tasks-v0.1.4/ambitious-tasks-0.1.4.mjs -o "$HOME/ambitious-tasks-0.1.4.mjs"
+            echo "e34df4d4bb277d154750a95776c2b0398cdbdfd2b52c24a9c6fe7e70873913a1  $HOME/ambitious-tasks-0.1.4.mjs" | sha256sum -c
+            node "$GITHUB_WORKSPACE/examples/end-to-end/run.mjs" --tasks "$HOME/ambitious-tasks-0.1.4.mjs" --scheduling "$AMBITIOUS_HOME/bin/ambitious-scheduling-0.1.2.mjs"
           '
